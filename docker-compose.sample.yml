@@ -1,0 +1,59 @@
+version: "3"
+services:
+  nginx:
+    build:
+      context: ./docker-compose/services/nginx
+      args:
+        NGINX_VERSION: nginx:1.19.1-alpine
+        CONTAINER_PACKAGE_URL: mirrors.ustc.edu.cn
+    #        NGINX_INSTALL_APPS:
+    container_name: nginx
+    ports:
+      - "8081:80"
+    #      - "443:443"
+    volumes:
+      - .:/www/:rw
+      - ./docker-compose/services/nginx/ssl:/ssl:rw
+      - ./docker-compose/services/nginx/conf.d:/etc/nginx/conf.d/:rw
+      - ./docker-compose/services/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker-compose/services/nginx/fastcgi-php.conf:/etc/nginx/fastcgi-php.conf:ro
+      - ./docker-compose/services/nginx/fastcgi_params:/etc/nginx/fastcgi_params:ro
+      - ./docker-compose/logs/nginx:/var/log/nginx/:rw
+    environment:
+      TZ: "Asia/Shanghai"
+    restart: always
+    networks:
+      - default
+      # 可以把-default 改成下列配置，以固定容器IP
+      #default:
+      #  ipv4_address: 10.0.0.10
+
+  php:
+    build:
+      context: ./docker-compose/services/php
+      args:
+        PHP_VERSION: php:8.0.9-fpm-alpine3.13
+        CONTAINER_PACKAGE_URL: mirrors.ustc.edu.cn
+        PHP_EXTENSIONS: pdo_mysql,mysqli,mbstring,gd,curl,opcache,mongodb,redis,zip
+        TZ: "Asia/Shanghai"
+    container_name: php
+    expose:
+      - 9501
+    volumes:
+      - .:/www/:rw
+      - ./docker-compose/services/php/php.ini:/usr/local/etc/php/php.ini:ro
+      - ./docker-compose/services/php/php-fpm.conf:/usr/local/etc/php-fpm.d/www.conf:rw
+      - ./docker-compose/logs/php:/var/log/php
+      - ./docker-compose/data/composer:/tmp/composer
+    restart: always
+    cap_add:
+      - SYS_PTRACE
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
+      # 解除下面的注释可以设置网段，用于nginx等容器固定容器IP
+      #config:
+      #  - subnet: 10.0.0.0/24
